@@ -14,7 +14,7 @@ __global__ void reduce_sum_kernel(const float* input_vecs, size_t n, size_t dim,
 
 
 void reduce_sum(const float* input_vecs, size_t n, size_t dim, float* output_vec) {
-    size_t threads_per_block = 32;
+    size_t threads_per_block = 128;
     size_t num_of_blocks = (dim-1)/threads_per_block+1;
     reduce_sum_kernel<<<num_of_blocks,threads_per_block>>>(input_vecs, n, dim, output_vec);
 }
