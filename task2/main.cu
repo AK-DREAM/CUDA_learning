@@ -24,7 +24,7 @@ void matmul(const float* P, const float* Q, size_t m, size_t n, size_t k, float*
     cudaMemcpy(A2, P, m*k*sizeof(float), cudaMemcpyHostToDevice);
     cudaMemcpy(B2, Q, k*n*sizeof(float), cudaMemcpyHostToDevice);
 
-    dim3 threadsPerBlock(16, 16);
+    dim3 threadsPerBlock(8, 8);
     dim3 numBlocks((m-1)/threadsPerBlock.x+1, (n-1)/threadsPerBlock.y+1); 
     matmulKernel<<<numBlocks, threadsPerBlock>>>(A2, B2, m, n, k, C2);
 
@@ -39,36 +39,32 @@ const int N = 2005;
 float A[N*N], B[N*N], C[N*N], tmp[N*N];
 float dA[N*N], dB[N*N], dC[N*N];
 
-/*
-3 3 2
-1 1
-1 1
-1 1
-1 1 1
-1 1 1
-1 2 3
-4 5 6
-7 8 9
-*/
-
 int main() {
-    int m, n, k; scanf("%d %d %d", &m, &n, &k);
+    int m, n, k; 
+    m = n = k = 2000;
+    // scanf("%d %d %d", &m, &n, &k);
     for (int i = 0; i < m; i++) {
         for (int j = 0; j < k; j++) {
-            scanf("%f", &A[i*k+j]);
+            // scanf("%f", &A[i*k+j]);
+            A[i*k+j] = i*k+j;
         }
     }
     for (int i = 0; i < k; i++) {
         for (int j = 0; j < n; j++) {
-            scanf("%f", &B[i*n+j]);
+            // scanf("%f", &B[i*n+j]);
+            B[i*n+j] = i*n+j;
         }
     }
-    for (int i = 0; i < m; i++) {
-        for (int j = 0; j < n; j++) {
-            scanf("%f", &dC[j*k+i]);
-        }
-    }
+    // for (int i = 0; i < m; i++) {
+    //     for (int j = 0; j < n; j++) {
+    //         scanf("%f", &dC[j*k+i]);
+    //     }
+    // }
+    double tme = 1.0*clock()/CLOCKS_PER_SEC;
     matmul(A, B, m, n, k, C);
+    cout << 1.0*clock()/CLOCKS_PER_SEC-tme << endl;
+
+    return 0;
 
     for (int i = 0; i < m; i++) {
         for (int j = 0; j < n; j++) {
