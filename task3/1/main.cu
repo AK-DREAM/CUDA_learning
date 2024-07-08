@@ -2,7 +2,7 @@
 #include <iostream>
 using namespace std;
 
-const int N = 1000005;
+const int N = 10000005;
 int a[N];
 
 __global__ void sort_kernel(int *d_vec, int n, int tp) {
@@ -19,7 +19,7 @@ __global__ void sort_kernel(int *d_vec, int n, int tp) {
 
 void sort(int *a, int n) {
     int* d_vec;
-    cudaMalloc((void**)&d_vec, n*sizeof(int));
+    cudaMalloc(&d_vec, n*sizeof(int));
     cudaMemcpy(d_vec, a, n*sizeof(int), cudaMemcpyHostToDevice);
 
     for (int i = 0; i < n; i++) {
@@ -31,11 +31,15 @@ void sort(int *a, int n) {
 }
 
 int main() {
-    int n; scanf("%d", &n);
+    int n; //scanf("%d", &n);
+    n = 10000000;
     for (int i = 0; i < n; i++) {
-        scanf("%d", &a[i]);
+        a[i] = rand();
+        // scanf("%d", &a[i]);
     }
+    double t = 1.0*clock()/CLOCKS_PER_SEC;
     sort(a, n);
-    for (int i = 0; i < n; i++) printf("%d ", a[i]);
+    printf("%lf\n", 1.0*clock()/CLOCKS_PER_SEC-t);
+    // for (int i = 0; i < n; i++) printf("%d ", a[i]);
     return 0;
 }

@@ -1,5 +1,6 @@
-#include <cstdio>
 #include <iostream>
+#include <cstdio>
+#define N 100000005
 using namespace std;
 
 #define CUDA_CHECK_ERROR() { \
@@ -10,25 +11,17 @@ using namespace std;
     } \
 }
 
-const int N = 10000005;
-int A[N], B[N];
-
-__global__ void get01_kernel(int *data, int *d01, int n) {
-    int id = blockIdx.x*blockDim.x+threadIdx.x;
-    if (id < n) {
-        d01[id] = (!!data[id]);
-    }
-}
-
-__global__ void debubble_kernel(int *data, int *ans, int *sum, int n) {
-    int id = blockIdx.x*blockDim.x+threadIdx.x;
-    if (id < n && data[id] != 0) {
-        ans[sum[id]-1] = data[id];
-    }
+void output(int *a, int n) {
+    static int debug[N];
+    cudaMemcpy(debug, a, n*sizeof(int), cudaMemcpyDeviceToHost);
+    for (int i = 0; i < n; i++) cout << debug[i] << " "; 
+    puts("");
 }
 
 const int threadsPerBlock = 512;
 const int elementsPerBlock = threadsPerBlock*2;
+
+int a[N];
 
 __global__ void scan_kernel(int *data, int *sum, int *bsum, int n) {
     __shared__ int tmp[elementsPerBlock];
@@ -67,13 +60,6 @@ __global__ void add_kernel(int *sum, int *bsum2, int n) {
     if (bid > 0 && ofst+tid*2+1 < n) sum[ofst+tid*2+1] += bsum2[bid-1];
 }
 
-void output(int *a, int n) {
-    static int debug[N];
-    cudaMemcpy(debug, a, n*sizeof(int), cudaMemcpyDeviceToHost);
-    for (int i = 0; i < n; i++) cout << debug[i] << " "; 
-    puts("");
-}
-
 void recursive_scan(int *data, int *sum, int n) {
     int blockNum = (n+elementsPerBlock-1)/elementsPerBlock;
     int *bsum, *bsum2;
@@ -88,43 +74,55 @@ void recursive_scan(int *data, int *sum, int n) {
     }
 }
 
+__global__ void work1_kernel(int *d_in, int *d_tmp, int n, int i) {
+    int idx = blockIdx.x*blockDim.x+threadIdx.x; 
+    if (idx < n) {
+        d_tmp[idx] = !(d_in[idx]>>i&1);
+    }
+}
 
-int debubble(int *a, int *b, int n) {
-    int *data, *d01, *sum, *ans;
-    cudaMalloc(&data, n*sizeof(int));
-    cudaMalloc(&d01, n*sizeof(int));
-    cudaMalloc(&sum, n*sizeof(int));
-    cudaMalloc(&ans, n*sizeof(int));
-    cudaMemcpy(data, a, n*sizeof(int), cudaMemcpyHostToDevice);
+__global__ void work2_kernel(int *d_in, int *d_tmp, int *d_out, int n, int i, int tot) {
+    int idx = blockIdx.x*blockDim.x+threadIdx.x; 
+    if (idx < n) {
+        int nw = idx>0?d_tmp[idx-1]:0;
+        int pos = (d_in[idx]>>i&1)?idx+tot-nw:nw;
+        d_out[pos] = d_in[idx];
+    }
+    __syncthreads();
+    if (idx < n) {
+        d_in[idx] = d_out[idx];
+    }
+}
 
-    get01_kernel<<<(n+31)/32, 32>>>(data, d01, n);
-    cudaDeviceSynchronize();
-    recursive_scan(d01, sum, n);
-    cudaDeviceSynchronize();
-    debubble_kernel<<<(n+31)/32, 32>>>(data, ans, sum, n);
-    cudaDeviceSynchronize();
+void sort(int *h_num, int n) {
+    int *d_in, *d_out, *d_tmp;
+    cudaMalloc(&d_in, n*sizeof(int));
+    cudaMalloc(&d_tmp, n*sizeof(int));
+    cudaMalloc(&d_out, n*sizeof(int));
+    cudaMemcpy(d_in, h_num, n*sizeof(int), cudaMemcpyHostToDevice);
 
-    cudaMemcpy(b, ans, n*sizeof(int), cudaMemcpyDeviceToHost);
-    int ret; 
-    cudaMemcpy(&ret, sum+n-1, sizeof(int), cudaMemcpyDeviceToHost);
-
-    cudaFree(data); cudaFree(d01);
-    cudaFree(sum); cudaFree(ans);
-
-    return ret;
+    for (int i = 0; i < 31; i++) {
+        int blockNum = (n+threadsPerBlock-1)/threadsPerBlock;
+        work1_kernel<<<blockNum, threadsPerBlock>>>(d_in, d_tmp, n, i);
+        cudaDeviceSynchronize();
+        recursive_scan(d_tmp, d_tmp, n);
+        cudaDeviceSynchronize();
+        int tot; cudaMemcpy(&tot, &d_tmp[n-1], sizeof(int), cudaMemcpyDeviceToHost);
+        work2_kernel<<<blockNum, threadsPerBlock>>>(d_in, d_tmp, d_out, n, i, tot);
+        cudaDeviceSynchronize();
+    }
+    cudaMemcpy(h_num, d_out, n*sizeof(int), cudaMemcpyDeviceToHost);
 }
 
 int main() {
-    int n; n = 10000000;
-    // scanf("%d", &n);
+    int n = 100000000;
     for (int i = 0; i < n; i++) {
-        // scanf("%d", &A[i]);
-        if (i&1) A[i] = i/2+1;
-        else A[i] = 0;
+        a[i] = rand();
     }
-    int cnt = 0;
-    printf("%d\n", cnt=debubble(A, B, n));
-    cout << 1.0*clock()/CLOCKS_PER_SEC << "!\n";
-    // for (int i = 0; i < cnt; i++) printf("%d ", B[i]);
+    puts("OK");
+    double t = 1.0*clock()/CLOCKS_PER_SEC;
+    sort(a, n);
+    printf("%lf\n", 1.0*clock()/CLOCKS_PER_SEC-t);
+    //for (int i = 0; i < n; i++) printf("%d ", a[i]);
     return 0;
 }
