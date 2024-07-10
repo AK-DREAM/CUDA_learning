@@ -55,22 +55,20 @@ int main() {
             B[i*n+j] = i*n+j;
         }
     }
-    // for (int i = 0; i < m; i++) {
-    //     for (int j = 0; j < n; j++) {
-    //         scanf("%f", &dC[j*k+i]);
-    //     }
-    // }
-    double tme = 1.0*clock()/CLOCKS_PER_SEC;
-    matmul(A, B, m, n, k, C);
-    cout << 1.0*clock()/CLOCKS_PER_SEC-tme << endl;
-
-    return 0;
-
     for (int i = 0; i < m; i++) {
         for (int j = 0; j < n; j++) {
-            printf("%f%c", C[i*n+j], " \n"[j==n-1]);
+            // scanf("%f", &dC[j*k+i]);
+            dC[j*m+i] = i*n+j;
         }
     }
+
+    matmul(A, B, m, n, k, C);
+
+    // for (int i = 0; i < m; i++) {
+    //     for (int j = 0; j < n; j++) {
+    //         printf("%f%c", C[i*n+j], " \n"[j==n-1]);
+    //     }
+    // }
 
     for (int i = 0; i < k; i++) {
         for (int j = 0; j < n; j++) {
@@ -86,15 +84,15 @@ int main() {
     }
     matmul(tmp, dC, k, n, m, dB);
 
-    for (int i = 0; i < m; i++) {
-        for (int j = 0; j < k; j++) {
-            printf("%f%c", dA[i*k+j], " \n"[j==k-1]);
-        }
-    }
-    for (int i = 0; i < k; i++) {
-        for (int j = 0; j < n; j++) {
-            printf("%f%c", dB[i*n+j], " \n"[j==n-1]);
-        }
-    }
+    // for (int i = 0; i < m; i++) {
+    //     for (int j = 0; j < k; j++) {
+    //         printf("%f%c", dA[i*k+j], " \n"[j==k-1]);
+    //     }
+    // }
+    // for (int i = 0; i < k; i++) {
+    //     for (int j = 0; j < n; j++) {
+    //         printf("%f%c", dB[i*n+j], " \n"[j==n-1]);
+    //     }
+    // }
     return 0;
 }

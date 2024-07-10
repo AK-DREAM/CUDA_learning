@@ -2,44 +2,42 @@
 #include <iostream>
 using namespace std;
 
-__global__ void reduce_sum_kernel(const float* input_vecs, size_t n, size_t dim, float* output_vec) {
-    size_t k = blockIdx.x * blockDim.x + threadIdx.x;
-    if (k < dim) {
-        float sum = 0;
-        for (int i = 0; i < n; i++) 
-            sum += input_vecs[i*dim+k];
-        output_vec[k] = sum;
+__global__ void reduce_sum_kernel(float *d_in, int n, int dim, int tot) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < tot) {
+        d_in[idx] += d_in[idx+tot];  
     }
 }
 
+void reduce_sum(float *h_in, float *h_out, size_t n, size_t dim) {
+    float* d_in;
+    cudaMalloc(&d_in, n*dim*sizeof(float));
+    cudaMemcpy(d_in, h_in, n*dim*sizeof(float), cudaMemcpyHostToDevice);
 
-void reduce_sum(const float* input_vecs, size_t n, size_t dim, float* output_vec) {
-    size_t threads_per_block = 128;
-    size_t num_of_blocks = (dim-1)/threads_per_block+1;
-    reduce_sum_kernel<<<num_of_blocks,threads_per_block>>>(input_vecs, n, dim, output_vec);
+    for (int i = n; i >= 2; i >>= 1) {
+        int tot = i*dim/2;
+        reduce_sum_kernel<<<(tot+1023)/1024,1024>>>(d_in, i, dim, tot);
+    }
+    
+    cudaMemcpy(h_out, d_in, dim*sizeof(float), cudaMemcpyDeviceToHost);
+    cudaFree(d_in); 
 }
 
-const int N = 1005;
+const int N = 10000005;
 float a[N], b[N];
 
 int main() {
     int n, dim; scanf("%d %d", &n, &dim);
     for (int i = 0; i < n; i++) {
-        for (int j = 0; j < dim; j++)
-            scanf("%f", &a[i*dim+j]);
+        for (int j = 0; j < dim; j++) {
+            a[i*dim+j] = i*dim+j;
+            // scanf("%f", &a[i*dim+j]);
+        }
     }
-
-    float* d_input_vecs;
-    float* d_output_vec;
-    cudaMalloc((void**)&d_input_vecs, n*dim*sizeof(float));
-    cudaMalloc((void**)&d_output_vec, dim*sizeof(float));
-    cudaMemcpy(d_input_vecs, a, n*dim*sizeof(float), cudaMemcpyHostToDevice);
-    reduce_sum(d_input_vecs, n, dim, d_output_vec);
-    cudaMemcpy(b, d_output_vec, dim*sizeof(float), cudaMemcpyDeviceToHost);
-
+    int lim = 1;
+    while (lim < n) lim <<= 1;
+    
+    reduce_sum(a, b, lim, dim);
     for (int i = 0; i < dim; i++) printf("%f ", b[i]);
-
-    cudaFree(d_input_vecs); 
-    cudaFree(d_output_vec);
     return 0;
 }

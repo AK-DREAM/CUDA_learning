@@ -101,25 +101,30 @@ void sort(int *h_num, int n) {
     cudaMalloc(&d_out, n*sizeof(int));
     cudaMemcpy(d_in, h_num, n*sizeof(int), cudaMemcpyHostToDevice);
 
+    double t = 1.0*clock()/CLOCKS_PER_SEC;
     for (int i = 0; i < 31; i++) {
         int blockNum = (n+threadsPerBlock-1)/threadsPerBlock;
+
         work1_kernel<<<blockNum, threadsPerBlock>>>(d_in, d_tmp, n, i);
         cudaDeviceSynchronize();
+
         recursive_scan(d_tmp, d_tmp, n);
         cudaDeviceSynchronize();
+
         int tot; cudaMemcpy(&tot, &d_tmp[n-1], sizeof(int), cudaMemcpyDeviceToHost);
         work2_kernel<<<blockNum, threadsPerBlock>>>(d_in, d_tmp, d_out, n, i, tot);
         cudaDeviceSynchronize();
     }
+    printf("%lf\n", 1.0*clock()/CLOCKS_PER_SEC-t);
+
     cudaMemcpy(h_num, d_out, n*sizeof(int), cudaMemcpyDeviceToHost);
 }
 
 int main() {
-    int n = 100000000;
+    int n = 10000000;
     for (int i = 0; i < n; i++) {
         a[i] = rand();
     }
-    puts("OK");
     double t = 1.0*clock()/CLOCKS_PER_SEC;
     sort(a, n);
     printf("%lf\n", 1.0*clock()/CLOCKS_PER_SEC-t);
